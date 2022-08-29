@@ -19,11 +19,14 @@ package controllers
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/dkhachyan/jupyterhub-operator/api/v1alpha1"
 	jupyterorgv1alpha1 "github.com/dkhachyan/jupyterhub-operator/api/v1alpha1"
 )
 
@@ -48,9 +51,25 @@ type JupyterhubReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *JupyterhubReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx).WithValues("Jupyterhub", req.NamespacedName)
 
-	// TODO(user): your logic here
-
+	instance := &v1alpha1.Jupyterhub{}
+	err := r.Get(context.TODO(), req.NamespacedName, instance)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return reconcile.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		return reconcile.Result{}, err
+	}
+	result, err := r.ensureJupyterhubDeployment(instance)
+	if result != nil {
+		log.Error(err, "Deployment Not ready")
+		return *result, err
+	}
 	return ctrl.Result{}, nil
 }
 

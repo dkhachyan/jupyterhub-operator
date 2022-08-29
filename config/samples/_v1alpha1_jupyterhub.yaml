@@ -2,5 +2,8 @@ apiVersion: jupyter.org/v1alpha1
 kind: Jupyterhub
 metadata:
   name: jupyterhub-sample
+  namespace: default
 spec:
-  # TODO(user): Add fields here
+  name: jupyterhub
+  image: jupyterhub/jupyterhub:latest
+  replicas: 2
