@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/dkhachyan/jupyterhub-operator/api/v1alpha1"
-	jupyterorgv1alpha1 "github.com/dkhachyan/jupyterhub-operator/api/v1alpha1"
 )
 
 // JupyterhubReconciler reconciles a Jupyterhub object
@@ -70,12 +70,12 @@ func (r *JupyterhubReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Error(err, "Deployment Not ready")
 		return *result, err
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *JupyterhubReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&jupyterorgv1alpha1.Jupyterhub{}).
+		For(&v1alpha1.Jupyterhub{}).
 		Complete(r)
 }
