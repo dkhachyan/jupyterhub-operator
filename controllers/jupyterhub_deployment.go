@@ -6,6 +6,7 @@ import (
 	"github.com/dkhachyan/jupyterhub-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -13,10 +14,14 @@ import (
 )
 
 func (r *JupyterhubReconciler) jupyerhubDeployment(cr *v1alpha1.Jupyterhub) *appsv1.Deployment {
+	labels := map[string]string{
+		"app": "jupyterhub",
+	}
 	jupyterhubDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Name,
 			Namespace: cr.Namespace,
+			Labels:    labels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &cr.Spec.Replicas,
@@ -53,19 +58,22 @@ func (r *JupyterhubReconciler) jupyerhubDeployment(cr *v1alpha1.Jupyterhub) *app
 }
 
 func (r *JupyterhubReconciler) ensureJupyterhubDeployment(instance *v1alpha1.Jupyterhub) (*reconcile.Result, error) {
-	jupyterhubDeployment := r.jupyerhubDeployment(instance)
-	desired := jupyterhubDeployment.DeepCopyObject().(client.Object)
+	desired := r.jupyerhubDeployment(instance)
+	existing := &appsv1.Deployment{}
 
-	err := r.Create(context.TODO(), jupyterhubDeployment)
+	err := r.Create(context.TODO(), desired)
 	if err != nil && errors.IsAlreadyExists(err) {
-		err := r.Update(context.TODO(), desired)
+		err := r.Client.Get(context.TODO(), client.ObjectKeyFromObject(desired), existing)
 		if err != nil {
-			return &reconcile.Result{}, err
-		} else {
-			return nil, nil
+			return nil, err
 		}
-	} else if err != nil {
-		return &reconcile.Result{}, err
+		if !apiequality.Semantic.DeepEqual(existing, desired) {
+			existing.Spec.Replicas = desired.Spec.Replicas
+			existing.Spec.Template = desired.Spec.Template
+			existing.Labels = desired.Labels
+			err := r.Update(context.TODO(), existing)
+			return nil, err
+		}
 	}
 	return nil, nil
 }
