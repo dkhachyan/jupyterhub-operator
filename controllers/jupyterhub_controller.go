@@ -65,7 +65,7 @@ func (r *JupyterhubReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
-	result, err := r.ensureJupyterhubDeployment(instance)
+	result, err := r.ensureJupyterhub(instance)
 	if result != nil {
 		log.Error(err, "Deployment Not ready")
 		return *result, err
@@ -78,4 +78,19 @@ func (r *JupyterhubReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Jupyterhub{}).
 		Complete(r)
+}
+
+func (r *JupyterhubReconciler) ensureJupyterhub(instance *v1alpha1.Jupyterhub) (result *ctrl.Result, err error) {
+
+	result, err = r.ensureJupyterhubDeployment(instance)
+	if err != nil {
+		return result, err
+	}
+
+	result, err = r.ensureJupyterhubService(instance)
+	if err != nil {
+		return result, err
+	}
+
+	return result, err
 }
